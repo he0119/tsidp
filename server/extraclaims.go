@@ -12,15 +12,24 @@ import (
 // returning a map[string]any that combines both sources.
 //
 // These extra claims are flattened and merged into the base map unless they conflict with protected claims.
-// Claims defined in openIDSupportedClaims are considered protected and cannot be overwritten.
+// Claims defined in openIDSupportedClaims are considered protected and cannot be overwritten,
+// except for "email" which can be customized via extraClaims.
 // If an extra claim attempts to overwrite a protected claim, an error is returned.
 //
 // Returns the merged claims map or an error if any protected claim is violated or JSON (un)marshaling fails.
 func withExtraClaims(claimMap map[string]any, rules []capRule) (map[string]any, error) {
+	// Define claims that can be overridden by extraClaims
+	allowedOverrides := map[string]struct{}{
+		"email": {},
+	}
+
 	// Convert views.Slice to a map[string]struct{} for efficient lookup
 	protected := make(map[string]struct{}, len(openIDSupportedClaims.AsSlice()))
 	for _, claim := range openIDSupportedClaims.AsSlice() {
-		protected[claim] = struct{}{}
+		// Skip claims that are allowed to be overridden
+		if _, allowed := allowedOverrides[claim]; !allowed {
+			protected[claim] = struct{}{}
+		}
 	}
 
 	// Merge extra claims
