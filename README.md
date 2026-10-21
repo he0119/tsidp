@@ -174,6 +174,17 @@ $ TAILSCALE_USE_WIP_CODE=1 TS_AUTHKEY={YOUR_TAILSCALE_AUTHKEY} TSNET_FORCE_LOGIN
 ],
 ```
 
+> [!NOTE]
+> `extraClaims` is merged into the id_token (and into the `/userinfo` response when `includeInUserInfo` is set) but cannot overwrite the claims tsidp sets itself: `sub`, `aud`, `exp`, `iat`, `iss`, `jti`, `nbf`, `username`, and the Tailscale claims `key`, `addresses`, `nid`, `node`, `tailnet`, `tags`, `user`, `uid`. A grant that tries is rejected.
+>
+> The one exception is `email`. What Tailscale reports is the login name, which is not always a real mailbox (`alice@github` after GitHub SSO, `alice@passkey` after a passkey login), so you can map it to an address of your own:
+>
+> ```hujson
+> "extraClaims": {
+>   "email": "alice@example.com"
+> }
+> ```
+
 ## tsidp Configuration Options
 
 The `tsidp-server` is configured by several command-line flags:
