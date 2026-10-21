@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/netip"
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/go-jose/go-jose/v4/jwt"
@@ -172,6 +173,20 @@ func TestFlattenExtraClaims(t *testing.T) {
 	}
 }
 
+// TestProtectedClaims guards the two invariants of the list: every protected claim is still
+// advertised in the discovery document, and "email" stays overridable via extraClaims.
+func TestProtectedClaims(t *testing.T) {
+	for _, claim := range protectedClaims {
+		if !slices.Contains(openIDSupportedClaims.AsSlice(), claim) {
+			t.Errorf("protected claim %q is not advertised in openIDSupportedClaims", claim)
+		}
+	}
+
+	if slices.Contains(protectedClaims, "email") {
+		t.Error(`"email" must stay uncovered by protectedClaims so extraClaims can map it`)
+	}
+}
+
 func TestExtraClaims(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -288,6 +303,38 @@ func TestExtraClaims(t *testing.T) {
 				"username":  "test",
 				"foo":       []any{"bar"},
 				"bar":       []any{"foo"},
+			},
+		},
+		{
+			name: "override email claim",
+			claim: tailscaleClaims{
+				Claims:    jwt.Claims{},
+				Nonce:     "foobar",
+				Key:       key.NodePublic{},
+				Addresses: views.Slice[netip.Prefix]{},
+				NodeID:    0,
+				NodeName:  "test-node",
+				Tailnet:   "test.ts.net",
+				Email:     "test@github",
+				UserID:    0,
+				UserName:  "test",
+			},
+			extraClaims: []capRule{
+				{
+					ExtraClaims: map[string]any{
+						"email": "test@example.com",
+					},
+				},
+			},
+			expected: map[string]any{
+				"nonce":     "foobar",
+				"key":       "nodekey:0000000000000000000000000000000000000000000000000000000000000000",
+				"addresses": nil,
+				"nid":       float64(0),
+				"node":      "test-node",
+				"tailnet":   "test.ts.net",
+				"email":     "test@example.com",
+				"username":  "test",
 			},
 		},
 		{
